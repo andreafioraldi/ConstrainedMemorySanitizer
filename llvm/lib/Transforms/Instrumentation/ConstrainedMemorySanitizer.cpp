@@ -1,4 +1,16 @@
-#include "ConstrainedMemorySanitizer.h"
+//===- ConstrainedMemorySanitizer.cpp -------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file is a part of ConstrainedMemorySanitizer.
+//
+//===----------------------------------------------------------------------===//
+
+#include "llvm/Transforms/Instrumentation/ConstrainedMemorySanitizer.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DepthFirstIterator.h"
@@ -45,6 +57,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
@@ -156,9 +169,9 @@ struct ConstrainedMemorySanitizer {
 
   void instrumentMop(ObjectSizeOffsetVisitor &ObjSizeVis, Instruction *I,
                      const DataLayout &DL);
-  void instrumentAddress(Instruction *OrigIns, Instruction *Instr,
-                         Value *Addr, uint32_t TypeSize, bool IsWrite,
-                         Value *SizeArgument, uint32_t Exp);
+  void instrumentAddress(Instruction *OrigIns, Instruction *Instr, Value *Addr,
+                         uint32_t TypeSize, bool IsWrite, Value *SizeArgument,
+                         uint32_t Exp);
   // void instrumentUnusualSizeOrAlignment(Instruction *I,
   //                                      Instruction *InsertBefore, Value
   //                                      *Addr, uint32_t TypeSize, bool
@@ -556,8 +569,8 @@ void ConstrainedMemorySanitizer::instrumentMop(
 }
 
 void ConstrainedMemorySanitizer::instrumentAddress(
-    Instruction *OrigIns, Instruction *Instr, Value *Addr,
-    uint32_t TypeSize, bool IsWrite, Value *SizeArgument, uint32_t Exp) {
+    Instruction *OrigIns, Instruction *Instr, Value *Addr, uint32_t TypeSize,
+    bool IsWrite, Value *SizeArgument, uint32_t Exp) {
   IRBuilder<> IRB(Instr->getNextNode());
   Value *AddrLong = IRB.CreatePointerCast(Addr, IntptrTy);
   size_t AccessSizeIndex = TypeSizeToSizeIndex(TypeSize);
@@ -597,7 +610,10 @@ class ConstrainedMemorySanitizerLegacyPass : public FunctionPass {
 public:
   static char ID;
 
-  explicit ConstrainedMemorySanitizerLegacyPass() : FunctionPass(ID) {}
+  explicit ConstrainedMemorySanitizerLegacyPass() : FunctionPass(ID) {
+    initializeConstrainedMemorySanitizerLegacyPassPass(
+        *PassRegistry::getPassRegistry());
+  }
 
   StringRef getPassName() const override {
     return "ConstrainedMemorySanitizerLegacyPass";
@@ -620,7 +636,10 @@ class ModuleConstrainedMemorySanitizerLegacyPass : public ModulePass {
 public:
   static char ID;
 
-  explicit ModuleConstrainedMemorySanitizerLegacyPass() : ModulePass(ID) {}
+  explicit ModuleConstrainedMemorySanitizerLegacyPass() : ModulePass(ID) {
+    initializeModuleConstrainedMemorySanitizerLegacyPassPass(
+        *PassRegistry::getPassRegistry());
+  }
 
   StringRef getPassName() const override {
     return "ModuleConstrainedMemorySanitizerLegacyPass";
@@ -635,19 +654,15 @@ public:
 char ConstrainedMemorySanitizerLegacyPass::ID = 0;
 char ModuleConstrainedMemorySanitizerLegacyPass::ID = 0;
 
-INITIALIZE_PASS_BEGIN(
-    ConstrainedMemorySanitizerLegacyPass, "cmsan",
-    "ConstrainedMemorySanitizer.",
-    false, false)
+INITIALIZE_PASS(ConstrainedMemorySanitizerLegacyPass, "cmsan",
+                "ConstrainedMemorySanitizer.", false, false)
+
+INITIALIZE_PASS(ModuleConstrainedMemorySanitizerLegacyPass, "cmsan-module",
+                "ConstrainedMemorySanitizer. ModulePass", false, false)
 
 FunctionPass *llvm::createConstrainedMemorySanitizerFunctionPass() {
   return new ConstrainedMemorySanitizerLegacyPass();
 }
-
-INITIALIZE_PASS(
-    ModuleConstrainedMemorySanitizerLegacyPass, "cmsan-module",
-    "ConstrainedMemorySanitizer. ModulePass",
-    false, false)
 
 ModulePass *llvm::createModuleConstrainedMemorySanitizerLegacyPassPass() {
   return new ModuleConstrainedMemorySanitizerLegacyPass();
