@@ -71,7 +71,7 @@ static void CmsanCheckFailed(const char *file, int line, const char *cond,
 
 // -------------------------- Globals --------------------- {{{1
 int cmsan_inited;
-bool cmasan_init_is_running;
+bool cmsan_init_is_running;
 
 #if !CMSAN_FIXED_MAPPING
 uptr kHighMemEnd, kMidMemBeg, kMidMemEnd;
@@ -120,6 +120,52 @@ static void InitializeHighMemEnd() {
   CHECK_EQ((kHighMemBeg % GetMmapGranularity()), 0);
 }
 
+void PrintAddressSpaceLayout() {
+  if (kHighMemBeg) {
+    Printf("|| `[%p, %p]` || HighMem    ||\n", (void *)kHighMemBeg,
+           (void *)kHighMemEnd);
+    Printf("|| `[%p, %p]` || HighShadow ||\n", (void *)kHighShadowBeg,
+           (void *)kHighShadowEnd);
+  }
+  if (kMidMemBeg) {
+    Printf("|| `[%p, %p]` || ShadowGap3 ||\n", (void *)kShadowGap3Beg,
+           (void *)kShadowGap3End);
+    Printf("|| `[%p, %p]` || MidMem     ||\n", (void *)kMidMemBeg,
+           (void *)kMidMemEnd);
+    Printf("|| `[%p, %p]` || ShadowGap2 ||\n", (void *)kShadowGap2Beg,
+           (void *)kShadowGap2End);
+    Printf("|| `[%p, %p]` || MidShadow  ||\n", (void *)kMidShadowBeg,
+           (void *)kMidShadowEnd);
+  }
+  Printf("|| `[%p, %p]` || ShadowGap  ||\n", (void *)kShadowGapBeg,
+         (void *)kShadowGapEnd);
+  if (kLowShadowBeg) {
+    Printf("|| `[%p, %p]` || LowShadow  ||\n", (void *)kLowShadowBeg,
+           (void *)kLowShadowEnd);
+    Printf("|| `[%p, %p]` || LowMem     ||\n", (void *)kLowMemBeg,
+           (void *)kLowMemEnd);
+  }
+  Printf("MemToShadow(shadow): %p %p", (void *)MEM_TO_SHADOW(kLowShadowBeg),
+         (void *)MEM_TO_SHADOW(kLowShadowEnd));
+  if (kHighMemBeg) {
+    Printf(" %p %p", (void *)MEM_TO_SHADOW(kHighShadowBeg),
+           (void *)MEM_TO_SHADOW(kHighShadowEnd));
+  }
+  if (kMidMemBeg) {
+    Printf(" %p %p", (void *)MEM_TO_SHADOW(kMidShadowBeg),
+           (void *)MEM_TO_SHADOW(kMidShadowEnd));
+  }
+  Printf("\n");
+
+  Printf("SHADOW_SCALE: %d\n", (int)SHADOW_SCALE);
+  Printf("SHADOW_GRANULARITY: %d\n", (int)SHADOW_GRANULARITY);
+  Printf("SHADOW_OFFSET: 0x%zx\n", (uptr)SHADOW_OFFSET);
+  CHECK(SHADOW_SCALE >= 3 && SHADOW_SCALE <= 7);
+  if (kMidMemBeg)
+    CHECK(kMidShadowBeg > kLowShadowEnd && kMidMemBeg > kMidShadowEnd &&
+          kHighShadowBeg > kMidMemEnd);
+}
+
 static void CmsanInitInternal() {
   if (LIKELY(cmsan_inited))
     return;
@@ -154,7 +200,7 @@ static void CmsanInitInternal() {
   // Install tool-specific callbacks in sanitizer_common.
   AddDieCallback(CmsanDie);
   SetCheckFailedCallback(CmsanCheckFailed);
-  SetPrintfAndReportCallback(AppendToErrorMessageBuffer);
+  // SetPrintfAndReportCallback(AppendToErrorMessageBuffer);
 
   __sanitizer_set_report_path(common_flags()->log_path);
 
@@ -184,8 +230,8 @@ static void CmsanInitInternal() {
   //  Atexit(cmsan_atexit);
 
   // Create main thread.
-  CmsanThread *main_thread = CreateMainThread();
-  CHECK_EQ(0, main_thread->tid());
+  // CmsanThread *main_thread = CreateMainThread();
+  // CHECK_EQ(0, main_thread->tid());
   force_interface_symbols(); // no-op.
   SanitizerInitializeUnwinder();
 
@@ -261,11 +307,11 @@ CMSAN_MEMORY_ACCESS_CALLBACK(store, true, 8)
 CMSAN_MEMORY_ACCESS_CALLBACK(store, true, 16)
 
 #define CMSAN_MEMORY_ACCESS_CALLBACK_N(type, is_write)                         \
-  extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_##type##size(           \
-      uptr addr, uptr size) {                                                  \
+  extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_##type##N(uptr addr,    \
+                                                                 uptr size) {  \
     CMSAN_MEMORY_ACCESS_CALLBACK_BODY(type, is_write, size, 0)                 \
   }                                                                            \
-  extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_exp_##type##size(       \
+  extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_exp_##type##N(          \
       uptr addr, uptr size, u32 exp) {                                         \
     CMSAN_MEMORY_ACCESS_CALLBACK_BODY(type, is_write, size, exp)               \
   }
@@ -276,7 +322,7 @@ CMSAN_MEMORY_ACCESS_CALLBACK_N(store, true)
 #define CMSAN_CONSTRAIN_CALLBACK(size)                                         \
   extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_constrain##size(        \
       uptr addr, ConstrainFunc##size func) {                                   \
-    CHECK(addr + size < addr);                                                 \
+    CHECK(addr + size > addr);                                                 \
     uptr iter = addr;                                                          \
     uptr end = iter + size;                                                    \
     CmsanIntervalSet(addr, end, (void *)func, CONSTRAINFUNC##size##TY);        \
@@ -287,7 +333,7 @@ CMSAN_MEMORY_ACCESS_CALLBACK_N(store, true)
 #define CMSAN_UNCONSTRAIN_CALLBACK(size)                                       \
   extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_unconstrain##size(      \
       uptr addr) {                                                             \
-    CHECK(addr + size < addr);                                                 \
+    CHECK(addr + size > addr);                                                 \
     uptr iter = addr;                                                          \
     uptr end = iter + size;                                                    \
     CmsanIntervalUnset(addr, end);                                             \
@@ -308,7 +354,7 @@ CMSAN_UNCONSTRAIN_CALLBACK(16)
 
 extern "C" NOINLINE INTERFACE_ATTRIBUTE void
 __cmsan_constrainN(uptr addr, uptr size, ConstrainFuncN func) {
-  CHECK(addr + size < addr);
+  CHECK(addr + size > addr);
   uptr iter = addr;
   uptr end = iter + size;
   CmsanIntervalSet(addr, end, (void *)func, CONSTRAINFUNCNTY);
@@ -318,7 +364,7 @@ __cmsan_constrainN(uptr addr, uptr size, ConstrainFuncN func) {
 
 extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_unconstrainN(uptr addr,
                                                                   uptr size) {
-  CHECK(addr + size < addr);
+  CHECK(addr + size > addr);
   uptr iter = addr;
   uptr end = iter + size;
   CmsanIntervalUnset(addr, end);
@@ -331,7 +377,11 @@ extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_unconstrainN(uptr addr,
 // ---------------------- Interface ---------------- {{{1
 using namespace __cmsan;
 
-void __cmsan_assert(int boolean) { CHECK(boolean); }
+extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_assert(int boolean) {
+  CHECK(boolean);
+}
 
 // Initialize as requested from instrumented application code.
-void __cmsan_init() { CmsanInitInternal(); }
+extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_init() {
+  CmsanInitInternal();
+}

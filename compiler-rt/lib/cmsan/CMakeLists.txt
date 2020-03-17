@@ -9,6 +9,7 @@ set(CMSAN_RTL_SOURCES
 	cmsan_shadow_setup.cpp
 	cmsan_preinit.cpp
 	cmsan_linux.cpp
+	cmsan_stack.cpp
 	cmsan_interceptors_memintrinsics.cpp
   )
 

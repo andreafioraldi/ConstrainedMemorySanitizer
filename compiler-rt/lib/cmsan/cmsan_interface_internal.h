@@ -31,6 +31,8 @@ extern "C" {
 // before any instrumented code is executed and before any call to malloc.
 SANITIZER_INTERFACE_ATTRIBUTE void __cmsan_init();
 
+SANITIZER_INTERFACE_ATTRIBUTE void __cmsan_assert(int boolean);
+
 // These two functions should be called before and after dynamic initializers
 // of a single module run, respectively.
 SANITIZER_INTERFACE_ATTRIBUTE
