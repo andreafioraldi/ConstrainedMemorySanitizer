@@ -72,6 +72,9 @@ class SanitizerArgs {
            !Sanitizers.has(SanitizerKind::Address) &&
            !Sanitizers.has(SanitizerKind::HWAddress);
   }
+  bool needsCmsanRt() const {
+    return Sanitizers.has(SanitizerKind::Constrained);
+  }
   bool needsUbsanRt() const;
   bool requiresMinimalRuntime() const { return MinimalRuntime; }
   bool needsDfsanRt() const { return Sanitizers.has(SanitizerKind::DataFlow); }

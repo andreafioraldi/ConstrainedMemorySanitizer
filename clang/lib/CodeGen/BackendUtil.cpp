@@ -63,6 +63,7 @@
 #include "llvm/Transforms/Instrumentation/MemorySanitizer.h"
 #include "llvm/Transforms/Instrumentation/SanitizerCoverage.h"
 #include "llvm/Transforms/Instrumentation/ThreadSanitizer.h"
+#include "llvm/Transforms/Instrumentation/ConstrainedMemorySanitizer.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
@@ -330,6 +331,16 @@ static void addKernelMemorySanitizerPass(const PassManagerBuilder &Builder,
 static void addThreadSanitizerPass(const PassManagerBuilder &Builder,
                                    legacy::PassManagerBase &PM) {
   PM.add(createThreadSanitizerLegacyPassPass());
+}
+
+static void addConstrainedMemorySanitizerPasses(
+                                      const PassManagerBuilder &Builder,
+                                      legacy::PassManagerBase &PM) {
+  const PassManagerBuilderWrapper &BuilderWrapper =
+      static_cast<const PassManagerBuilderWrapper&>(Builder);
+  const Triple &T = BuilderWrapper.getTargetTriple();
+  PM.add(createConstrainedMemorySanitizerFunctionPass());
+  PM.add(createModuleConstrainedMemorySanitizerLegacyPassPass());
 }
 
 static void addDataFlowSanitizerPass(const PassManagerBuilder &Builder,
@@ -671,6 +682,13 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
                            addThreadSanitizerPass);
     PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
                            addThreadSanitizerPass);
+  }
+
+  if (LangOpts.Sanitize.has(SanitizerKind::Constrained)) {
+    PMBuilder.addExtension(PassManagerBuilder::EP_OptimizerLast,
+                           addConstrainedMemorySanitizerPasses);
+    PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+                           addConstrainedMemorySanitizerPasses);
   }
 
   if (LangOpts.Sanitize.has(SanitizerKind::DataFlow)) {

@@ -971,6 +971,8 @@ SanitizerMask Linux::getSupportedSanitizers() const {
     Res |= SanitizerKind::HWAddress;
     Res |= SanitizerKind::KernelHWAddress;
   }
+  if (IsX86 || IsX86_64)
+    Res |= SanitizerKind::Constrained;
   return Res;
 }
 
