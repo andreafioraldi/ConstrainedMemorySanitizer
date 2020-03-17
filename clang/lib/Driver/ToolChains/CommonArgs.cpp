@@ -635,8 +635,10 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
     }
     if (SanArgs.needsHwasanRt() && SanArgs.linkRuntimes())
       SharedRuntimes.push_back("hwasan");
-    if (SanArgs.needsCmsanRt() && SanArgs.linkRuntimes())
+    if (SanArgs.needsCmsanRt() && SanArgs.linkRuntimes()) {
       SharedRuntimes.push_back("cmsan");
+      SharedRuntimes.push_back("ubsan_standalone");
+    }
   }
 
   // The stats_client library is also statically linked into DSOs.
