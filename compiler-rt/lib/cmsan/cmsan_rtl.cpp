@@ -378,7 +378,12 @@ extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_unconstrainN(uptr addr,
 using namespace __cmsan;
 
 extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_assert(int boolean) {
-  CHECK(boolean);
+  if (!boolean) {
+    Report("ConstrainedMemorySanitizer ASSERT failed\n");
+
+    PRINT_CURRENT_STACK_CHECK();
+    Die();
+  }
 }
 
 // Initialize as requested from instrumented application code.
