@@ -564,7 +564,10 @@ void ConstrainedMemorySanitizer::instrumentMop(
   // }
 
   // TODO(andrea) do we need a special case for unaligned accesses?
-  instrumentAddress(I, I, Addr, TypeSize, IsWrite, nullptr, Exp);
+  // TODO(andrea) for sure we need it for unusual sizes
+  if (TypeSize == 8 || TypeSize == 16 || TypeSize == 32 || TypeSize == 64 ||
+       TypeSize == 128)
+    instrumentAddress(I, I, Addr, TypeSize, IsWrite, nullptr, Exp);
 }
 
 void ConstrainedMemorySanitizer::instrumentAddress(
