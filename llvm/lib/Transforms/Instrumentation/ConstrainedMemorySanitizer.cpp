@@ -172,6 +172,9 @@ struct ConstrainedMemorySanitizer {
   void instrumentAddress(Instruction *OrigIns, Instruction *Instr, Value *Addr,
                          uint32_t TypeSize, bool IsWrite, Value *SizeArgument,
                          uint32_t Exp);
+  void instrumentUnusualSize(Instruction *OrigIns, Instruction *Instr,
+                             Value *Addr, uint32_t TypeSize, bool IsWrite,
+                             Value *SizeArgument, uint32_t Exp);
   // void instrumentUnusualSizeOrAlignment(Instruction *I,
   //                                      Instruction *InsertBefore, Value
   //                                      *Addr, uint32_t TypeSize, bool
@@ -564,10 +567,12 @@ void ConstrainedMemorySanitizer::instrumentMop(
   // }
 
   // TODO(andrea) do we need a special case for unaligned accesses?
-  // TODO(andrea) for sure we need it for unusual sizes
   if (TypeSize == 8 || TypeSize == 16 || TypeSize == 32 || TypeSize == 64 ||
        TypeSize == 128)
     instrumentAddress(I, I, Addr, TypeSize, IsWrite, nullptr, Exp);
+  else {
+    instrumentUnusualSize(I, I, Addr, TypeSize, IsWrite, nullptr, Exp);
+  }
 }
 
 void ConstrainedMemorySanitizer::instrumentAddress(
@@ -585,6 +590,21 @@ void ConstrainedMemorySanitizer::instrumentAddress(
                    {AddrLong, ConstantInt::get(IRB.getInt32Ty(), Exp)});
 
   // TODO(andrea) inline instrumentation
+}
+
+void ConstrainedMemorySanitizer::instrumentUnusualSize(
+    Instruction *OrigIns, Instruction *Instr, Value *Addr, uint32_t TypeSize,
+    bool IsWrite, Value *SizeArgument, uint32_t Exp) {
+  IRBuilder<> IRB(Instr->getNextNode());
+  Value *AddrLong = IRB.CreatePointerCast(Addr, IntptrTy);
+  Value *Size = ConstantInt::get(IntptrTy, TypeSize / 8);
+
+  if (Exp == 0)
+    IRB.CreateCall(CmsanMemoryAccessCallbackSized[IsWrite][0],
+                   {AddrLong, Size});
+  else
+    IRB.CreateCall(CmsanMemoryAccessCallbackSized[IsWrite][1],
+                   {AddrLong, Size, ConstantInt::get(IRB.getInt32Ty(), Exp)});
 }
 
 // Instrument memset/memmove/memcpy
