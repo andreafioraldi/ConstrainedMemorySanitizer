@@ -23,7 +23,8 @@
 #include "ubsan/ubsan_init.h"
 #include "ubsan/ubsan_platform.h"
 
-#include <cassert>
+#include <mutex>
+#include <shared_mutex>
 
 uptr __cmsan_shadow_memory_dynamic_address; // Global interface symbol.
 
@@ -249,30 +250,41 @@ static void CmsanInitInternal() {
   }
 }
 
-static void CmsanHitMemory(uptr start, uptr end, bool is_write) {
+static std::shared_timed_mutex cmsan_mut;
+
+static inline void CmsanTagMemory(uintptr_t start, uintptr_t end, void *fn,
+                                  uint8_t type) {
+  std::unique_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
+  lock.lock();
+  CmsanIntervalSet(start, end, fn, type);
+}
+
+static inline void CmsanUntagMemory(uintptr_t start, uintptr_t end) {
+  std::unique_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
+  lock.lock();
+  CmsanIntervalUnset(start, end);
+}
+
+static inline void CmsanHitMemory(uptr start, uptr end, bool is_write) {
+  std::shared_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
+  lock.lock();
   CmsanIntervalExecuteAll(start, end);
 }
 
-#define CMSAN_GET_BIT(base, idx)                                               \
-  ({                                                                           \
-    uptr i = (idx);                                                            \
-    u8 bit = ((u8 *)(base))[i >> 3] & (128 >> (i & 7));                        \
-    bit;                                                                       \
-  })
+static inline __attribute__((always_inline)) u8 CmsanGetBit(uptr base,
+                                                            uptr idx) {
+  return ((u8 *)(base))[idx >> 3] & (128 >> (idx & 7));
+}
 
-#define CMSAN_SET_BIT(base, idx)                                               \
-  do {                                                                         \
-    u8 *b = (u8 *)(base);                                                      \
-    uptr i = (idx);                                                            \
-    b[i >> 3] |= (128 >> (i & 7));                                             \
-  } while (0)
+static inline __attribute__((always_inline)) void CmsanSetBit(uptr base,
+                                                              uptr idx) {
+  ((u8 *)base)[idx >> 3] |= (128 >> (idx & 7));
+}
 
-#define CMSAN_UNSET_BIT(base, idx)                                             \
-  do {                                                                         \
-    u8 *b = (u8 *)(base);                                                      \
-    uptr i = (idx);                                                            \
-    b[i >> 3] &= ~(128 >> (i & 7));                                            \
-  } while (0)
+static inline __attribute__((always_inline)) void CmsanUnsetBit(uptr base,
+                                                                uptr idx) {
+  ((u8 *)base)[idx >> 3] &= ~(128 >> (idx & 7));
+}
 
 #define CMSAN_MEMORY_ACCESS_CALLBACK_BODY(type, is_write, size, exp_arg)       \
   /* if (!AddrIsInMem(addr) && !AddrIsInShadow(addr))                          \
@@ -281,7 +293,7 @@ static void CmsanHitMemory(uptr start, uptr end, bool is_write) {
   uptr iter = addr;                                                            \
   uptr end = iter + size;                                                      \
   while (iter < end)                                                           \
-    mask |= CMSAN_GET_BIT(SHADOW_OFFSET, iter++);                              \
+    mask |= CmsanGetBit(SHADOW_OFFSET, iter++);                                \
   if (mask)                                                                    \
     CmsanHitMemory(addr, end, is_write);
 
@@ -325,9 +337,9 @@ CMSAN_MEMORY_ACCESS_CALLBACK_N(store, true)
     CHECK(addr + size > addr);                                                 \
     uptr iter = addr;                                                          \
     uptr end = iter + size;                                                    \
-    CmsanIntervalSet(addr, end, (void *)func, CONSTRAINFUNC##size##TY);        \
+    CmsanTagMemory(addr, end, (void *)func, CONSTRAINFUNC##size##TY);          \
     while (iter < end)                                                         \
-      CMSAN_SET_BIT(SHADOW_OFFSET, iter++);                                    \
+      CmsanSetBit(SHADOW_OFFSET, iter++);                                      \
   }
 
 #define CMSAN_UNCONSTRAIN_CALLBACK(size)                                       \
@@ -336,9 +348,9 @@ CMSAN_MEMORY_ACCESS_CALLBACK_N(store, true)
     CHECK(addr + size > addr);                                                 \
     uptr iter = addr;                                                          \
     uptr end = iter + size;                                                    \
-    CmsanIntervalUnset(addr, end);                                             \
+    CmsanUntagMemory(addr, end);                                               \
     while (iter < end)                                                         \
-      CMSAN_SET_BIT(SHADOW_OFFSET, iter++);                                    \
+      CmsanSetBit(SHADOW_OFFSET, iter++);                                      \
   }
 
 CMSAN_CONSTRAIN_CALLBACK(1)
@@ -357,9 +369,9 @@ __cmsan_constrainN(uptr addr, uptr size, ConstrainFuncN func) {
   CHECK(addr + size > addr);
   uptr iter = addr;
   uptr end = iter + size;
-  CmsanIntervalSet(addr, end, (void *)func, CONSTRAINFUNCNTY);
+  CmsanTagMemory(addr, end, (void *)func, CONSTRAINFUNCNTY);
   while (iter < end)
-    CMSAN_SET_BIT(SHADOW_OFFSET, iter++);
+    CmsanSetBit(SHADOW_OFFSET, iter++);
 }
 
 extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_unconstrainN(uptr addr,
@@ -367,9 +379,9 @@ extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_unconstrainN(uptr addr,
   CHECK(addr + size > addr);
   uptr iter = addr;
   uptr end = iter + size;
-  CmsanIntervalUnset(addr, end);
+  CmsanUntagMemory(addr, end);
   while (iter < end)
-    CMSAN_UNSET_BIT(SHADOW_OFFSET, iter++);
+    CmsanUnsetBit(SHADOW_OFFSET, iter++);
 }
 
 } // namespace __cmsan
