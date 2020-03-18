@@ -208,7 +208,7 @@ static SanitizerMask parseSanitizeTrapArgs(const Driver &D,
 bool SanitizerArgs::needsUbsanRt() const {
   // All of these include ubsan.
   if (needsAsanRt() || needsMsanRt() || needsHwasanRt() || needsTsanRt() ||
-      needsDfsanRt() || needsLsanRt() || needsCfiDiagRt() ||
+      needsDfsanRt() || needsLsanRt() || needsCfiDiagRt() || needsCmsanRt() ||
       (needsScudoRt() && !requiresMinimalRuntime()))
     return false;
 

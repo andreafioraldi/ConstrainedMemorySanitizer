@@ -477,7 +477,6 @@ bool ConstrainedMemorySanitizer::instrumentFunction(
   //  return FunctionModified;
 
   LLVM_DEBUG(dbgs() << "CMSAN instrumenting:\n" << F << "\n");
-  errs() << "CMSAN instrumenting:\n" << F << "\n";
 
   initializeCallbacks(*F.getParent());
 

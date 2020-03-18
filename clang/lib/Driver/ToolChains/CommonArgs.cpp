@@ -637,7 +637,8 @@ collectSanitizerRuntimes(const ToolChain &TC, const ArgList &Args,
       SharedRuntimes.push_back("hwasan");
     if (SanArgs.needsCmsanRt() && SanArgs.linkRuntimes()) {
       SharedRuntimes.push_back("cmsan");
-      SharedRuntimes.push_back("ubsan_standalone");
+      if (!Args.hasArg(options::OPT_shared) && !TC.getTriple().isAndroid())
+        HelperStaticRuntimes.push_back("cmsan-preinit");
     }
   }
 
