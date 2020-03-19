@@ -389,12 +389,21 @@ extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_unconstrainN(uptr addr,
 // ---------------------- Interface ---------------- {{{1
 using namespace __cmsan;
 
-extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_assert(int boolean) {
+extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_trigger_assert(const char *file, int line, const char* cond, u64 v1, u64 v2) {
+  Report(
+    "ConstrainedMemorySanitizer ASSERT failed: %s:%d \"%s\" (0x%zx, 0x%zx)\n",
+    file, line, cond, (uptr)v1, (uptr)v2);
+
+  PRINT_CURRENT_STACK_CHECK();
+  if (flags()->halt_on_error) Die();
+}
+
+extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_basic_assert(int boolean) {
   if (!boolean) {
     Report("ConstrainedMemorySanitizer ASSERT failed\n");
 
     PRINT_CURRENT_STACK_CHECK();
-    Die();
+    if (flags()->halt_on_error) Die();
   }
 }
 

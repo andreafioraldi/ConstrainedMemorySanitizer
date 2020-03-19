@@ -17,13 +17,17 @@
 using namespace __cmsan;
 
 void *__cmsan_memcpy(void *to, const void *from, uptr size) {
-  return internal_memcpy(to, from, size); // TODO
+  __cmsan_loadN((uptr)from, size);
+  void *r = internal_memcpy(to, from, size);
+  __cmsan_storeN((uptr)to, size);
 }
 
 void *__cmsan_memset(void *block, int c, uptr size) {
-  return internal_memset(block, c, size); // TODO
+  void *r = internal_memset(block, c, size);
 }
 
 void *__cmsan_memmove(void *to, const void *from, uptr size) {
-  return internal_memmove(to, from, size); // TODO
+  __cmsan_loadN((uptr)from, size);
+  void *r = internal_memmove(to, from, size);
+  __cmsan_storeN((uptr)to, size);
 }

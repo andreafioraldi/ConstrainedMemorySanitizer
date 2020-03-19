@@ -20,6 +20,7 @@ CMSAN_FLAG(bool, wrap_signals, true, "")
 CMSAN_FLAG(bool, protect_shadow_gap, true, "If set, mprotect the shadow gap")
 CMSAN_FLAG(bool, print_stats, false, "")
 CMSAN_FLAG(bool, atexit, false, "")
+CMSAN_FLAG(bool, halt_on_error, true, "")
 CMSAN_FLAG(bool, unmap_shadow_on_exit, false,
           "If set, explicitly unmaps the (huge) shadow at exit.")
 CMSAN_FLAG(
