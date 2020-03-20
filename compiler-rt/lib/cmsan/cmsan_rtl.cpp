@@ -395,7 +395,10 @@ extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_trigger_assert(const char *
     file, line, cond, (uptr)v1, (uptr)v2);
 
   PRINT_CURRENT_STACK_CHECK();
-  if (flags()->halt_on_error) Die();
+  if (flags()->halt_on_error) {
+    Report("ABORTING\n");
+    Die();
+  }
 }
 
 extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_basic_assert(int boolean) {
@@ -403,7 +406,10 @@ extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_basic_assert(int boolean) {
     Report("ConstrainedMemorySanitizer ASSERT failed\n");
 
     PRINT_CURRENT_STACK_CHECK();
-    if (flags()->halt_on_error) Die();
+    if (flags()->halt_on_error) {
+      Report("ABORTING\n");
+      Die();
+    }
   }
 }
 
