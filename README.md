@@ -9,7 +9,7 @@ mkdir BUILD
 cd BUILD
 sudo mkdir /opt/myllvm10/
 
-cmake -G "Unix Makefiles" -DLLVM_ENABLE_PROJECTS="clang;compiler-rt" -DCMAKE_INSTALL_PREFIX=/opt/myllvm10 -DCMAKE_BUILD_TYPE=Debug ../llvm
+cmake -G "Unix Makefiles" -DLLVM_ENABLE_PROJECTS="clang;compiler-rt" -DCMAKE_INSTALL_PREFIX=/opt/myllvm10 -DCMAKE_BUILD_TYPE=Release ../llvm
 
 make -j `nproc`
 ```
