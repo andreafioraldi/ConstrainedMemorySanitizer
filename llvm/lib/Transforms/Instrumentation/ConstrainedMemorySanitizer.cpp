@@ -100,10 +100,9 @@ static const uint64_t kCmsanCtorAndDtorPriority = 1;
 
 static const char *const kCmsanInitName = "__cmsan_init";
 
-// This flag may need to be replaced with -f[no-]cmsan-reads.
 static cl::opt<bool> ClInstrumentReads("cmsan-instrument-reads",
                                        cl::desc("instrument read instructions"),
-                                       cl::Hidden, cl::init(true));
+                                       cl::Hidden, cl::init(false));
 
 static cl::opt<bool> ClInstrumentAtomics(
     "cmsan-instrument-atomics",
