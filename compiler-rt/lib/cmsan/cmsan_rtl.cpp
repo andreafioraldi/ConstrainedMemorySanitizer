@@ -250,25 +250,26 @@ static void CmsanInitInternal() {
   }
 }
 
-static std::shared_timed_mutex cmsan_mut;
+//static std::shared_timed_mutex cmsan_mut;
 
 static inline void CmsanTagMemory(uintptr_t start, uintptr_t end, void *fn,
                                   uint8_t type) {
-  std::unique_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
-  lock.lock();
+  //std::unique_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
+  //lock.lock();
   CmsanIntervalSet(start, end, fn, type);
 }
 
 static inline void CmsanUntagMemory(uintptr_t start, uintptr_t end) {
-  std::unique_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
-  lock.lock();
+  //std::unique_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
+  //lock.lock();
   CmsanIntervalUnset(start, end);
 }
 
-static inline void CmsanHitMemory(uptr start, uptr end, bool is_write) {
-  std::shared_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
-  lock.lock();
-  CmsanIntervalExecuteAll(start, end);
+static inline void CmsanHitMemory(uptr start, uptr end, void* retaddr,
+                                  bool is_write) {
+  //std::shared_lock<std::shared_timed_mutex> lock(cmsan_mut, std::defer_lock);
+  //lock.lock();
+  CmsanIntervalExecuteAll(start, end, retaddr);
 }
 
 static inline __attribute__((always_inline)) u8 CmsanGetBit(uptr base,
@@ -295,7 +296,7 @@ static inline __attribute__((always_inline)) void CmsanUnsetBit(uptr base,
   while (iter < end)                                                           \
     mask |= CmsanGetBit(SHADOW_OFFSET, iter++);                                \
   if (mask)                                                                    \
-    CmsanHitMemory(addr, end, is_write);
+    CmsanHitMemory(addr, end, (void*)__builtin_return_address(0), is_write);
 
 #define CMSAN_MEMORY_ACCESS_CALLBACK(type, is_write, size)                     \
   extern "C" NOINLINE INTERFACE_ATTRIBUTE void __cmsan_##type##size(           \

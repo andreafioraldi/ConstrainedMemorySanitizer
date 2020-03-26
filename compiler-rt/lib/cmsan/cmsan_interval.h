@@ -14,7 +14,7 @@ struct MemRange {
 };
 
 struct MemRange *CmsanIntervalSearch(uintptr_t query);
-void CmsanIntervalExecuteAll(uintptr_t start, uintptr_t end);
+void CmsanIntervalExecuteAll(uintptr_t start, uintptr_t end, void* retaddr);
 void CmsanIntervalUnset(uintptr_t start, uintptr_t end);
 void CmsanIntervalSet(uintptr_t start, uintptr_t end, void *fn, uint8_t type);
 

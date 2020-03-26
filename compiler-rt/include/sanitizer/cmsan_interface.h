@@ -21,12 +21,12 @@
 #define CMSAN_U128P void*
 #endif
 
-typedef void (*ConstrainFunc1)(uint8_t *);
-typedef void (*ConstrainFunc2)(uint16_t *);
-typedef void (*ConstrainFunc4)(uint32_t *);
-typedef void (*ConstrainFunc8)(uint64_t *);
-typedef void (*ConstrainFunc16)(CMSAN_U128P);
-typedef void (*ConstrainFuncN)(const volatile void *, size_t);
+typedef void (*ConstrainFunc1)(uint8_t *, void*);
+typedef void (*ConstrainFunc2)(uint16_t *, void*);
+typedef void (*ConstrainFunc4)(uint32_t *, void*);
+typedef void (*ConstrainFunc8)(uint64_t *, void*);
+typedef void (*ConstrainFunc16)(CMSAN_U128P, void*);
+typedef void (*ConstrainFuncN)(const volatile void *, size_t, void*);
 
 #define __cmsan_assert(EXP) \
   do { \

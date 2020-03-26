@@ -28,26 +28,26 @@ struct MemRange *CmsanIntervalSearchFirst(uintptr_t start, uintptr_t end) {
   return NULL;
 }
 
-void CmsanIntervalExecuteAll(uintptr_t start, uintptr_t end) {
+void CmsanIntervalExecuteAll(uintptr_t start, uintptr_t end, void* retaddr) {
 
   struct MemTreeNode *node = mem_tree_iter_first(&root, start, end);
   while (node) {
     switch (node->rng.type) {
     case CONSTRAINFUNC1TY:
-      ((ConstrainFunc1)node->rng.fn)(node->rng.start);
+      ((ConstrainFunc1)node->rng.fn)(node->rng.start, retaddr);
       break;
     case CONSTRAINFUNC2TY:
-      ((ConstrainFunc2)node->rng.fn)(node->rng.start);
+      ((ConstrainFunc2)node->rng.fn)(node->rng.start, retaddr);
       break;
     case CONSTRAINFUNC4TY:
-      ((ConstrainFunc4)node->rng.fn)(node->rng.start);
+      ((ConstrainFunc4)node->rng.fn)(node->rng.start, retaddr);
       break;
     case CONSTRAINFUNC8TY:
-      ((ConstrainFunc8)node->rng.fn)(node->rng.start);
+      ((ConstrainFunc8)node->rng.fn)(node->rng.start, retaddr);
       break;
     case CONSTRAINFUNCNTY:
       ((ConstrainFuncN)node->rng.fn)(node->rng.start,
-                                     node->rng.end - node->rng.start);
+                                     node->rng.end - node->rng.start, retaddr);
       break;
     default:
       abort();
