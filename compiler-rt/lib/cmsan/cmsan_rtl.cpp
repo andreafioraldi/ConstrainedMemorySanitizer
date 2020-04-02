@@ -15,6 +15,7 @@
 #include "cmsan_interval.h"
 #include "cmsan_mapping.h"
 #include "cmsan_stack.h"
+#include "cmsan_interceptors.h"
 #include "lsan/lsan_common.h"
 #include "sanitizer_common/sanitizer_atomic.h"
 #include "sanitizer_common/sanitizer_flags.h"
@@ -210,7 +211,7 @@ static void CmsanInitInternal() {
   // Re-exec ourselves if we need to set additional env or command line args.
   MaybeReexec();
 
-  // InitializeCmsanInterceptors();
+  InitializeCmsanInterceptors();
   CheckASLR();
 
   // Enable system log ("adb logcat") on Android.

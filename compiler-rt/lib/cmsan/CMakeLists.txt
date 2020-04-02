@@ -3,6 +3,7 @@ set(CMSAN_SOURCES
 	interval-tree/rbtree.c
 	cmsan_interval.c
   cmsan_flags.cpp
+  cmsan_interceptors.cpp
   cmsan_interceptors_memintrinsics.cpp
   cmsan_linux.cpp
   cmsan_rtl.cpp
