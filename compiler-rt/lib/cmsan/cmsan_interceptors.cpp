@@ -21,8 +21,10 @@ using namespace __cmsan;
 extern "C" uptr malloc_usable_size(void*);
 
 INTERCEPTOR(void, free, void *ptr) {
-  uptr size = malloc_usable_size(ptr);
-  __cmsan_unconstrainN((uptr)ptr, (uptr)size);
+  if (ptr) {
+    uptr size = malloc_usable_size(ptr);
+    __cmsan_unconstrainN((uptr)ptr, (uptr)size);
+  }
   REAL(free)(ptr);
 }
 
