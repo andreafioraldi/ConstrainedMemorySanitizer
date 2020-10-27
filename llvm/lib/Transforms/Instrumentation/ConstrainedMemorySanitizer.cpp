@@ -102,6 +102,10 @@ static const char *const kCmsanInitName = "__cmsan_init";
 
 static cl::opt<bool> ClInstrumentReads("cmsan-instrument-reads",
                                        cl::desc("instrument read instructions"),
+                                       cl::Hidden, cl::init(true));
+
+static cl::opt<bool> ClInstrumentWrites("cmsan-instrument-writes",
+                                       cl::desc("instrument write instructions"),
                                        cl::Hidden, cl::init(false));
 
 static cl::opt<bool> ClInstrumentAtomics(
@@ -398,19 +402,21 @@ Value *ConstrainedMemorySanitizer::isInterestingMemoryAccess(
     *Alignment = LI->getAlignment();
     PtrOperand = LI->getPointerOperand();
   } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
+    if (!ClInstrumentWrites)
+      return nullptr;
     *IsWrite = true;
     *TypeSize = DL.getTypeStoreSizeInBits(SI->getValueOperand()->getType());
     *Alignment = SI->getAlignment();
     PtrOperand = SI->getPointerOperand();
   } else if (AtomicRMWInst *RMW = dyn_cast<AtomicRMWInst>(I)) {
-    if (!ClInstrumentAtomics)
+    if (!ClInstrumentAtomics || !ClInstrumentWrites)
       return nullptr;
     *IsWrite = true;
     *TypeSize = DL.getTypeStoreSizeInBits(RMW->getValOperand()->getType());
     *Alignment = 0;
     PtrOperand = RMW->getPointerOperand();
   } else if (AtomicCmpXchgInst *XCHG = dyn_cast<AtomicCmpXchgInst>(I)) {
-    if (!ClInstrumentAtomics)
+    if (!ClInstrumentAtomics || !ClInstrumentWrites)
       return nullptr;
     *IsWrite = true;
     *TypeSize = DL.getTypeStoreSizeInBits(XCHG->getCompareOperand()->getType());
@@ -422,6 +428,8 @@ Value *ConstrainedMemorySanitizer::isInterestingMemoryAccess(
               F->getName().startswith("llvm.masked.store."))) {
       unsigned OpOffset = 0;
       if (F->getName().startswith("llvm.masked.store.")) {
+        if (!ClInstrumentWrites)
+          return nullptr;
         // Masked store has an initial operand for the value.
         OpOffset = 1;
         *IsWrite = true;
