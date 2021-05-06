@@ -65,3 +65,33 @@ Inside the callbacks, you can use `CMSAN_ASSERT` to check the invariants. When v
 Several macros for binary comparisons to have better error messages are avaiable too: `CMSAN_ASSERT_LT`, `CMSAN_ASSERT_LE`, `CMSAN_ASSERT_GT`, `CMSAN_ASSERT_GE`, `CMSAN_ASSERT_EQ`, `CMSAN_ASSERT_NE`.
 
 As this sanitizer uses a shadow memory, you will have troubles to use it combined with other shadow memory based sanitizers such as ASan and MSan, but works with UBSan.
+
+## Example
+
+For instance, in this example we check that the field `is_root` is not 0 only when `uid` is 0 every time that `is_root` is accessed.
+
+```c
+#include "cmsan_interface.h"
+
+struct my_task_struct {
+    int is_root;
+    ...
+    int uid;
+    ...
+};
+
+// this is executed every time that is_root is read
+void cmsan_check_my_task_struct_is_root(uint32_t *ptr, void* addr) {
+    struct my_task_struct* mts = CMSAN_BASEOF(struct my_task_struct, is_root, ptr);
+    CMSAN_ASSERT(!(*ptr > 0 && mts->uid > 0));
+}
+
+struct my_task_struct* create_my_task_struct(void) {
+    struct my_task_struct* mts = malloc(sizeof(struct my_task_struct));
+    ...
+    // set the watchpoint
+    __cmsan_constrain4(&mts->is_root, &cmsan_check_my_task_struct_is_root);
+    ...
+    return mts;
+}
+```
